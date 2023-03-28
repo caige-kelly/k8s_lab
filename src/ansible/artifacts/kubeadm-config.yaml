@@ -4,3 +4,6 @@ kubernetesVersion: 1.25.1
 controlPlaneEndpoint: "k8scp:6443"
 networking:
   podSubnet: 192.168.0.0/16
+nodeRegistration:
+  criSocket: "var/run/containerd/containerd.sock"
+
