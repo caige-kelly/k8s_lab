@@ -1,0 +1,5 @@
+---
+- name: configure control plane node(s)
+  hosts: control_plane
+  roles:
+    - control_plane 

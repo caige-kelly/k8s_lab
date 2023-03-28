@@ -1,0 +1,169 @@
+- name: update system
+  ansible.builtin.command:
+    cmd: apt-get update
+
+- name: upgrade system
+  ansible.builtin.command:
+    cmd: apt-get upgrade -y
+
+- name: install dependencies
+  become: yes
+  ansible.builtin.command:
+    cmd: > 
+      apt-get install curl apt-transport-https vim git wget gnupg2
+      software-properties-common lsb-release ca-certificates uidmap -y
+
+- name: turn off swap
+  ansible.builtin.command:
+    cmd: swapoff -a
+  
+- name: modprobe overlay
+  ansible.builtin.command:
+    cmd: modprobe overlay
+  register: overlay
+- debug:
+    var: overlay.stdout_lines
+
+- name: modprobe br_netfilter
+  ansible.builtin.command:
+    cmd: modprobe br_netfilter
+  register: br_netfilter
+- debug:
+    var: br_netfilter.stdout_lines
+
+- name: net bridge settings
+  ansible.builtin.shell:
+    cmd: |
+      cat << EOF | tee /etc/sysctl.d/kubernetes.conf
+      net.bridge.bridge-nf-call-ip6tables = 1
+      net.bridge.bridge-nf-call-iptables = 1
+      net.ipv4.ip_forward = 1
+      EOF
+  register: net_bridge_settings
+- debug:
+    var: net_bridge_settings.stdout_lines
+
+- name: reload system
+  ansible.builtin.shell:
+    cmd: sysctl --system
+  register: sysctl
+- debug:
+    var: sysctl.stdout_lines
+
+- name: make keyrings directory
+  ansible.builtin.shell:
+    cmd: mkdir -p /etc/apt/keyrings
+
+- name: download gpg keys
+  ansible.builtin.shell:
+    cmd: >
+      curl -fsSL 
+      http://download.docker.com/linux/ubuntu/gpg
+      | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+
+- name: add gpg keys
+  ansible.builtin.shell:
+    cmd: >
+      echo 
+      "deb [arch=$(dpkg --print-architecture) 
+      signed-by=/etc/apt/keyrings/docker.gpg]
+      https://download.docker.com/linux/ubuntu
+      $(lsb_release -cs) stable" | 
+      sudo tee /etc/apt/sources.list.d/docker.list > 
+      /dev/null
+
+- name: install containerd
+  ansible.builtin.shell:
+    cmd: apt-get update && apt-get install containerd.io -y
+
+- name: export containerd default config
+  ansible.builtin.shell:
+    cmd: > 
+      containerd config default |
+      tee /etc/containerd/config.toml ; 
+      sed -e 's/SystemdCgroup = false/SystemCgroup = true/g'
+      -i /etc/containerd/config.toml ;
+      systemctl restart containerd
+
+- name: add kubernetes repo
+  ansible.builtin.shell:
+    cmd: > 
+      echo "deb http://apt.kubernetes.io/ kubernetes-xenial main" >
+      /etc/apt/sources.list.d/kubernetes.list
+
+- name: add google gpg key
+  ansible.builtin.shell:
+    cmd: >
+      curl -s 
+      https://packages.cloud.google.com/apt/doc/apt-key.gpg
+      | apt-key add -
+
+- name: system update
+  ansible.builtin.shell:
+    cmd: apt-get update
+  register: update
+  until: "update is not failed"
+  retries: 3
+  delay: 5
+
+- name: install kube stuff
+  ansible.builtin.shell:
+    cmd: >
+      apt-get install -y
+      kubeadm=1.25.1-00
+      kubelet=1.25.1-00
+      kubectl=1.25.1-00
+
+- name: hold kube versions
+  ansible.builtin.shell:
+    cmd: >
+      apt-mark hold
+      kubelet
+      kubeadm
+      kubectl
+
+- name: download calico
+  ansible.builtin.shell:
+    cmd: >
+      wget https://raw.githubusercontent.com/projectcalico/calico/v3.25.0/manifests/calico.yaml
+
+- name: update /etc/hosts
+  ansible.builtin.shell:
+    cmd: echo "$(hostname -i) k8scp" >> /etc/hosts
+
+- name: copy kubeadm conf over
+  ansible.builtin.copy:
+    src: artifacts/kubeadm-config.yaml
+    dest: /home/ubuntu
+    owner: ubuntu
+    group: ubuntu
+    mode: '0640'
+
+- name: kubeadm init
+  ansible.builtin.shell:
+    cmd: >
+      kubeadm init --config=kubeadm-config.yaml
+      --upload-certs |
+      tee kubeadm-init.out
+  register: kubeadm_output
+- debug:
+    var: kubeadm_output.stdout_lines
+
+- name: set cluster creds
+  ansible.builtin.shell:
+    cmd: |
+      mkdir -p /home/ubuntu/.kube
+      cp -i /etc/kubernetes/admin.conf /home/ubuntu/.kube/config
+      chown ubuntu:ubuntu /home/ubuntu/.kube/config
+  register: set_creds
+- debug: 
+    var: set_creds.stdout_lines
+
+- name: apply calico
+  become: yes
+  become_user: ubuntu
+  ansible.builtin.shell:
+    cmd: kubectl apply -f calico.yaml
+  register: apply_calico
+- debug: 
+    var: apply_calico.stdout_lines
