@@ -142,7 +142,8 @@
 - name: kubeadm init
   ansible.builtin.shell:
     cmd: >
-      kubeadm init --config=kubeadm-config.yaml
+      kubeadm init 
+      --config=kubeadm-config.yaml
       --upload-certs |
       tee kubeadm-init.out
   register: kubeadm_output
@@ -167,3 +168,24 @@
   register: apply_calico
 - debug: 
     var: apply_calico.stdout_lines
+
+- name: fix crictl
+  ansible.builtin.shell:
+    cmd: |
+      cat << EOF | tee /etc/crictl.yaml
+      runtime-endpoint: unix:///var/run/containerd/containerd.sock
+      image-endpoint: unix:///var/run/containerd/containerd.sock
+      timeout: 10
+      EOF
+
+
+
+
+
+
+
+       kubeadm join k8scp:6443 --token hzs3el.wtwzbw39fnvbyfg9 \\",
+        "\t--discovery-token-ca-cert-hash sha256:6c43608419945261d62d8551a8515b104d94b6bec029b17ae63b7dc24e29c8b8 \\",
+        "\t--control-plane --certificate-key b65a53aaad2818eb6b779ebbaf391919a329580eb85191f691cde7458249782d",
+
+        18.221.72.245 
