@@ -1,6 +1,6 @@
 # Configure K8s nodes
 
-# Description
+## Description
 
 Current only configures control plane node
 
@@ -9,9 +9,9 @@ Current only configures control plane node
 - Need to add private key in inventory/group_vars/ssh_config
 - Update IP addresses in inventory
 
-
-
-
+## TODO
+get cp IP as var in ansible to pass into /etc/hosts worker node
+programatically run kubeadm join from ansible
 
 ## random notes
 
