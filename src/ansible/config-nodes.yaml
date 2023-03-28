@@ -3,3 +3,7 @@
   hosts: control_plane
   roles:
     - control_plane 
+- name: configure worker nodes
+  hosts: worker
+  roles:
+    - worker
