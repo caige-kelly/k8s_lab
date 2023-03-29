@@ -17,6 +17,3 @@ all:
       children:
         control_plane:
         worker:
-      #example using vars
-      #vars:
-        #msg: "hello world"
