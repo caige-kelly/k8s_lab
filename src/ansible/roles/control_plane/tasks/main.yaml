@@ -178,14 +178,29 @@
       timeout: 10
       EOF
 
+- name: export IP for worker nodes
+  ansible.builtin.shell:
+    cmd: echo "$(hostname -i | awk '{print $1}') k8scp"
+  register: ip_raw
 
+- name: extract join command
+  ansible.builtin.shell:
+    cmd: >
+      cat kubeadm-init.out
+      | grep -A4 "any number of worker nodes"
+      | tail -n 2
+      | tr -d '\n'
+      | tr -d '\t'
+      | tr -d '\'
+  register: join
 
+- debug: 
+    var: ip_raw.stdout
+- debug:
+    var: join.stdout 
 
-
-
-
-       kubeadm join k8scp:6443 --token hzs3el.wtwzbw39fnvbyfg9 \\",
-        "\t--discovery-token-ca-cert-hash sha256:6c43608419945261d62d8551a8515b104d94b6bec029b17ae63b7dc24e29c8b8 \\",
-        "\t--control-plane --certificate-key b65a53aaad2818eb6b779ebbaf391919a329580eb85191f691cde7458249782d",
-
-        18.221.72.245 
+- name: dummy host with ip
+  add_host:
+    name: "DUMMY_HOST"
+    IP: "{{ ip_raw.stdout }}"
+    JOIN: "{{ join.stdout}} "

@@ -121,3 +121,11 @@
       kubelet
       kubeadm
       kubectl
+
+- name: Add cp /etc/hosts
+  ansible.builtin.shell:
+    cmd: echo {{ hostvars['DUMMY_HOST']['IP'] }} >> /etc/hosts
+
+- name: Join cluster
+  ansible.builtin.shell:
+    cmd: "{{ hostvars['DUMMY_HOST']['JOIN'] }}"
