@@ -26,3 +26,4 @@ spec:
 
 #Domain CPU requirements
 
+kubernetes.io/hostname: ip-192-168-0-214

@@ -1,12 +1,16 @@
 resource "aws_vpc" "cka" {
-  cidr_block = "10.0.0.0/16"
+  cidr_block = var.vpc_cidr_range
 }
 
 
 resource "aws_subnet" "cka" {
   vpc_id                  = aws_vpc.cka.id
-  cidr_block              = "10.0.0.0/24"
+  cidr_block              = var.subnet_cidr_range
   map_public_ip_on_launch = true
+
+  tags = {
+    "kubernetes.io/role/elb" = "1"
+  }
 }
 
 
@@ -22,8 +26,11 @@ resource "aws_eip" "cka_master" {
 
 
 resource "aws_eip" "cka_worker" {
-  instance = aws_instance.cka_worker.id
-  vpc      = true
+  count    = length(aws_instance.cka_worker)
+  instance = aws_instance.cka_worker[count.index].id
+
+  //aws_instance.cka_worker.id
+  vpc = true
 }
 
 
@@ -53,7 +60,7 @@ resource "aws_security_group" "allow_ssh" {
     from_port   = 0
     to_port     = 65535
     protocol    = "tcp"
-    cidr_blocks = [var.ip_address] #Change to perosnal IP
+    cidr_blocks = [var.remote_ip_address]
   }
 
   ingress {
@@ -61,7 +68,7 @@ resource "aws_security_group" "allow_ssh" {
     from_port   = 0
     to_port     = 65535
     protocol    = "tcp"
-    cidr_blocks = ["10.0.0.0/24"]
+    cidr_blocks = [var.subnet_cidr_range]
   }
 
   egress {
@@ -74,12 +81,18 @@ resource "aws_security_group" "allow_ssh" {
 
 
 resource "aws_instance" "cka_master" {
-  ami                    = "ami-0cefaebb6da6ffd7f"
-  instance_type          = "t4g.large"
-  key_name               = "ubuntu"
+  ami                    = var.ami_image
+  instance_type          = var.instance_size
+  key_name               = var.ami_key_name
   subnet_id              = aws_subnet.cka.id
   vpc_security_group_ids = [aws_security_group.allow_ssh.id]
 
+  metadata_options {
+    http_endpoint               = "enabled"
+    http_put_response_hop_limit = 2
+  }
+
+  iam_instance_profile = aws_iam_instance_profile.k8s_worker_profile.id
 
   tags = {
     App    = "K8s"
@@ -88,11 +101,19 @@ resource "aws_instance" "cka_master" {
 }
 
 resource "aws_instance" "cka_worker" {
-  ami                    = "ami-0cefaebb6da6ffd7f"
-  instance_type          = "t4g.large"
-  key_name               = "ubuntu"
+  count                  = var.worker_node_count
+  ami                    = var.ami_image
+  instance_type          = var.instance_size
+  key_name               = var.ami_key_name
   subnet_id              = aws_subnet.cka.id
   vpc_security_group_ids = [aws_security_group.allow_ssh.id]
+
+  iam_instance_profile = aws_iam_instance_profile.k8s_worker_profile.id
+
+  metadata_options {
+    http_endpoint               = "enabled"
+    http_put_response_hop_limit = 2
+  }
 
 
   tags = {
@@ -108,5 +129,5 @@ output "control_node_ip" {
 
 
 output "worker_node_ip" {
-  value = aws_eip.cka_worker.public_ip
+  value = [for i in aws_eip.cka_worker : i.public_ip]
 }

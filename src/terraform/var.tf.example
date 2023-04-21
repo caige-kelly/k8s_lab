@@ -15,7 +15,22 @@ variable "aws_region" {
 }
 
 
-variable "ip_address" {
+variable "remote_ip_address" {
     type = string
     default = "0.0.0.0/32"
+}
+
+variable "instance_size" {
+  type = string
+  default = "t3a.large"
+}
+
+variable "subnet_cidr_range" {
+  type    = string
+  default = "192.168.0.0/24"
+}
+
+variable "vpc_cidr_range" {
+  type    = string
+  default = "192.168.0.0/16
 }

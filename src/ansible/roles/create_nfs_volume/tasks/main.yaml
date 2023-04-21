@@ -1,0 +1,8 @@
+- name: create nfs volume
+  ansible.builtin.shell:
+    cmd: |
+      apt-get install -y nfs-kernel-server
+      mkdir  /opt/sfw
+      chmod 1777 /opt/sfw
+      echo '/opt/sfw/ *(rw,sync,no_root_squash,subtree_check)' >> /etc/exports
+      exportfs -ra

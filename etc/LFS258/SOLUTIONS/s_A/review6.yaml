@@ -4,10 +4,10 @@ metadata:
   name: securityreview
 spec:
   securityContext:
-    runAsUser: 2100
+    runAsUser: 101
   containers:
   - name:  webguy
     image: nginx
     securityContext:
-      runAsUser: 3000
+      runAsUser: 101
       allowPrivilegeEscalation: false

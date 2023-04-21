@@ -1,9 +1,16 @@
 ---
+- name: common configuration
+  hosts: control_plane,worker
+  roles:
+    - common
+
 - name: configure control plane node(s)
   hosts: control_plane
   roles:
     - control_plane 
-- name: configure worker nodes
+
+- name: configure worker node(s)
   hosts: worker
   roles:
     - worker
+    - create_nfs_volume
